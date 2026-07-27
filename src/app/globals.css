@@ -1,0 +1,232 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  /*
+   * Dark is the product's native mode — the light theme exists so the app is
+   * usable in bright rooms, not as an equal-weight design.
+   */
+  :root {
+    --background: 220 26% 5%;
+    --foreground: 210 20% 96%;
+
+    --card: 220 22% 8%;
+    --card-foreground: 210 20% 96%;
+
+    --popover: 220 24% 7%;
+    --popover-foreground: 210 20% 96%;
+
+    --primary: 41 84% 60%;
+    --primary-foreground: 40 60% 8%;
+
+    --secondary: 220 16% 14%;
+    --secondary-foreground: 210 20% 92%;
+
+    --muted: 220 16% 13%;
+    --muted-foreground: 218 12% 62%;
+
+    --accent: 217 91% 62%;
+    --accent-foreground: 210 40% 98%;
+
+    --destructive: 0 72% 58%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 218 18% 18%;
+    --input: 218 18% 18%;
+    --ring: 41 84% 60%;
+
+    --bull: 158 72% 45%;
+    --bear: 4 82% 62%;
+    --neutral: 218 12% 62%;
+
+    --gold: 41 84% 60%;
+    --gold-soft: 41 72% 74%;
+
+    --radius: 0.85rem;
+  }
+
+  .light {
+    --background: 210 30% 99%;
+    --foreground: 220 30% 10%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 220 30% 10%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 220 30% 10%;
+
+    --primary: 38 72% 44%;
+    --primary-foreground: 40 60% 98%;
+
+    --secondary: 214 24% 95%;
+    --secondary-foreground: 220 30% 14%;
+
+    --muted: 214 24% 95%;
+    --muted-foreground: 218 12% 42%;
+
+    --accent: 217 84% 52%;
+    --accent-foreground: 210 40% 99%;
+
+    --destructive: 0 72% 48%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 214 20% 89%;
+    --input: 214 20% 89%;
+    --ring: 38 72% 44%;
+
+    --bull: 158 70% 32%;
+    --bear: 4 74% 50%;
+    --neutral: 218 12% 42%;
+
+    --gold: 38 72% 44%;
+    --gold-soft: 38 62% 56%;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+    scroll-behavior: smooth;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: "cv11", "ss01";
+    font-variation-settings: normal;
+  }
+
+  /* Prices, tickers and any figure that must not reflow as digits change. */
+  .tabular {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum";
+  }
+
+  ::selection {
+    @apply bg-primary/30 text-foreground;
+  }
+
+  /* Terminal-grade scrollbars: present, but never loud. */
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply rounded-full border-[3px] border-solid border-transparent bg-muted-foreground/25 bg-clip-content;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-muted-foreground/45 bg-clip-content;
+  }
+
+  :focus-visible {
+    @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
+  }
+}
+
+@layer components {
+  /*
+   * The single glass recipe used by every elevated surface. Defined once so
+   * cards, popovers and the chat dock cannot drift apart visually.
+   */
+  .glass {
+    @apply border border-white/[0.07] bg-white/[0.035] backdrop-blur-xl;
+    box-shadow:
+      0 1px 0 0 hsl(0 0% 100% / 0.06) inset,
+      0 24px 60px -24px hsl(220 60% 2% / 0.7);
+  }
+
+  .light .glass {
+    @apply border-black/[0.07] bg-white/70;
+    box-shadow:
+      0 1px 0 0 hsl(0 0% 100% / 0.8) inset,
+      0 20px 50px -28px hsl(220 40% 30% / 0.28);
+  }
+
+  .glass-hover {
+    @apply transition-[background-color,border-color,box-shadow,transform] duration-300;
+  }
+  .glass-hover:hover {
+    @apply -translate-y-0.5 border-white/[0.12] bg-white/[0.06];
+  }
+  .light .glass-hover:hover {
+    @apply border-black/[0.12] bg-white;
+  }
+
+  /* Hairline that fades at both ends — used to separate terminal sections. */
+  .rule {
+    @apply h-px w-full border-0;
+    background: linear-gradient(
+      to right,
+      transparent,
+      hsl(var(--border)),
+      transparent
+    );
+  }
+
+  .text-gradient {
+    @apply bg-gradient-to-br from-foreground via-foreground to-foreground/55 bg-clip-text text-transparent;
+  }
+
+  .text-gradient-gold {
+    @apply bg-gradient-to-br from-gold-soft via-gold to-gold/70 bg-clip-text text-transparent;
+  }
+
+  /* Ambient radial wash behind hero / section headers. */
+  .aurora::before {
+    content: "";
+    @apply pointer-events-none absolute inset-0 -z-10;
+    background:
+      radial-gradient(
+        60% 50% at 50% 0%,
+        hsl(var(--gold) / 0.14) 0%,
+        transparent 70%
+      ),
+      radial-gradient(
+        40% 40% at 85% 20%,
+        hsl(var(--accent) / 0.12) 0%,
+        transparent 70%
+      );
+  }
+}
+
+@layer utilities {
+  .mask-fade-x {
+    -webkit-mask-image: linear-gradient(
+      to right,
+      transparent,
+      black 8%,
+      black 92%,
+      transparent
+    );
+    mask-image: linear-gradient(
+      to right,
+      transparent,
+      black 8%,
+      black 92%,
+      transparent
+    );
+  }
+
+  .mask-fade-b {
+    -webkit-mask-image: linear-gradient(to bottom, black 55%, transparent 100%);
+    mask-image: linear-gradient(to bottom, black 55%, transparent 100%);
+  }
+}
