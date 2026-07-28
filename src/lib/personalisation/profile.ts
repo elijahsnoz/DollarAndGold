@@ -1,3 +1,4 @@
+import { isEvidenceGrade } from "@/lib/context/types";
 import { ASSET_CLASS_LABEL, getAsset } from "@/lib/market/catalog";
 import { DAY } from "@/lib/market/simulation";
 import type { WorkspaceState } from "@/lib/workspace/types";
@@ -134,6 +135,41 @@ function describeNextUnlock(
   return null;
 }
 
+/**
+ * How much of the journal can support claims about market conditions.
+ *
+ * The note matters more than the numbers. A user with twenty trades and no
+ * conditions insight will assume the feature is broken unless told that their
+ * history predates context capture — silence needs a reason attached, or it
+ * reads as failure.
+ */
+function assessContextCoverage(workspace: WorkspaceState) {
+  const closed = workspace.journal.filter((trade) => trade.outcome !== "open");
+  const usable = closed.filter((trade) => isEvidenceGrade(trade.openContext));
+
+  const closedTrades = closed.length;
+  const withUsableContext = usable.length;
+
+  if (closedTrades === 0) {
+    return { closedTrades, withUsableContext, note: null };
+  }
+
+  if (withUsableContext === closedTrades) {
+    return { closedTrades, withUsableContext, note: null };
+  }
+
+  const missing = closedTrades - withUsableContext;
+
+  return {
+    closedTrades,
+    withUsableContext,
+    note:
+      withUsableContext === 0
+        ? `None of your ${closedTrades} closed ${closedTrades === 1 ? "trade has" : "trades have"} live market conditions recorded, so nothing can yet be said about how conditions affect your results. Trades recorded from now on will carry that context.`
+        : `${withUsableContext} of your ${closedTrades} closed trades have live market conditions recorded. The other ${missing} either predate context capture or were recorded against simulated prices, so they are excluded from any conclusion about conditions.`,
+  };
+}
+
 export function deriveProfile(
   workspace: WorkspaceState,
   now: number = Date.now(),
@@ -158,6 +194,7 @@ export function deriveProfile(
   const classSum = [...classTotals.values()].reduce((a, b) => a + b, 0) || 1;
 
   const { insights, withheld } = deriveInsights(workspace, now);
+  const contextCoverage = assessContextCoverage(workspace);
 
   return {
     generatedAt: now,
@@ -174,6 +211,7 @@ export function deriveProfile(
         share: value / classSum,
       }))
       .sort((a, b) => b.share - a.share),
+    contextCoverage,
     insights,
     withheldInsights: withheld,
     nextUnlock: describeNextUnlock(workspace, withheld),

@@ -144,6 +144,15 @@ export function LearningPanel({
             : profile.nextUnlock ??
               "Nothing is currently pending. New patterns will appear here as your history grows."}
         </p>
+
+        {/* Silence about market conditions needs its reason attached. Without
+            this, a user with twenty trades and no conditions insight concludes
+            the feature is broken rather than that the evidence isn't there. */}
+        {profile.contextCoverage.note && (
+          <p className="mt-2.5 text-sm leading-relaxed text-muted-foreground">
+            {profile.contextCoverage.note}
+          </p>
+        )}
       </section>
     </Card>
   );

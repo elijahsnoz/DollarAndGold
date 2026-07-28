@@ -94,6 +94,22 @@ export interface UserProfile {
   focusMarkets: RankedMarket[];
   /** Asset classes ordered by attention share. */
   classAffinity: { assetClass: string; label: string; share: number }[];
+  /**
+   * How much of the trade history can support claims about market conditions.
+   *
+   * Conditions-based rules read only snapshots captured live at the time. When
+   * most of a journal predates context capture — or was recorded against
+   * simulated prices — those rules stay silent, and the user is owed the
+   * reason. Without this, working-as-designed silence is indistinguishable
+   * from a broken feature.
+   */
+  contextCoverage: {
+    closedTrades: number;
+    withUsableContext: number;
+    /** Plain-English explanation of the gap, or null when there isn't one. */
+    note: string | null;
+  };
+
   /** Only insights that cleared the evidence bar. */
   insights: BehaviourInsight[];
   /** Insights withheld, so the UI can honestly say it is still learning. */

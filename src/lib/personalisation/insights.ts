@@ -1,3 +1,4 @@
+import { isEvidenceGrade } from "@/lib/context/types";
 import { getAsset } from "@/lib/market/catalog";
 import { DAY } from "@/lib/market/simulation";
 import type { JournalEntry, WorkspaceState } from "@/lib/workspace/types";
@@ -225,6 +226,121 @@ function researchToRecord(
   };
 }
 
+// --- Context-aware rules ----------------------------------------------------
+//
+// These read the Market Context Engine: what the market was actually doing when
+// a position was opened. They are the reason that engine exists — a claim about
+// conditions cannot be reconstructed after the fact, only recorded at the time.
+//
+// Every rule below draws from `contextTrades` rather than `closedTrades`. That
+// filter is doing real work: a trade recorded against simulated prices, or one
+// entered before context capture existed, describes conditions that either
+// never happened or were never observed. Mixing those into a conclusion about
+// someone's real behaviour produces a claim that sounds specific and means
+// nothing.
+
+interface ContextTrade extends ClosedTrade {
+  openContext: NonNullable<JournalEntry["openContext"]>;
+}
+
+/** Closed trades whose entry conditions can support a real conclusion. */
+function contextTrades(workspace: WorkspaceState): ContextTrade[] {
+  return closedTrades(workspace).filter(
+    (trade): trade is ContextTrade => isEvidenceGrade(trade.openContext),
+  );
+}
+
+/** Split a set of trades in two and compare, with a shared evidence gate. */
+function comparePartition(
+  trades: ContextTrade[],
+  predicate: (trade: ContextTrade) => boolean,
+  { minPerSide = 3, minGap = 1 }: { minPerSide?: number; minGap?: number } = {},
+) {
+  const yes = trades.filter(predicate);
+  const no = trades.filter((trade) => !predicate(trade));
+
+  if (yes.length < minPerSide || no.length < minPerSide) return null;
+
+  const yesAvg = mean(yes.map((t) => t.result));
+  const noAvg = mean(no.map((t) => t.result));
+  if (Math.abs(yesAvg - noAvg) < minGap) return null;
+
+  return { yes, no, yesAvg, noAvg, observations: yes.length + no.length };
+}
+
+/** Whether results differ between calm and active market conditions. */
+function volatilityOutcome(trades: ContextTrade[]): BehaviourInsight | null {
+  const split = comparePartition(
+    trades,
+    (trade) =>
+      trade.openContext.volatilityRegime === "elevated" ||
+      trade.openContext.volatilityRegime === "high",
+  );
+  if (!split) return null;
+
+  const inActive = split.yesAvg;
+  const inCalm = split.noAvg;
+  const betterInCalm = inCalm > inActive;
+
+  const evidence = gradeEvidence(
+    split.observations,
+    `${split.yes.length} trades opened in elevated volatility, ${split.no.length} in calmer conditions`,
+  );
+
+  return {
+    id: "volatility-outcome",
+    kind: betterInCalm ? "watch-out" : "strength",
+    title: betterInCalm
+      ? "Your results are weaker in high-volatility conditions"
+      : "You have handled volatile conditions well",
+    body: `${hedge(evidence)}positions you opened when volatility was elevated averaged ${inActive.toFixed(1)}%, against ${inCalm.toFixed(1)}% in calmer conditions. ${
+      betterInCalm
+        ? "Wider ranges mean the same stop distance is reached more easily, so an idea that would have worked in a quiet week can be stopped out in a busy one. Worth checking whether your sizing changed when conditions did."
+        : "That is unusual — most records show the opposite — and worth understanding rather than assuming it repeats."
+    }`,
+    evidence,
+  };
+}
+
+/** Whether trading with the prevailing trend has worked better than against it. */
+function trendAlignment(trades: ContextTrade[]): BehaviourInsight | null {
+  // Only trades opened into a market with a clear direction can be aligned or
+  // not — a neutral trend has nothing to agree or disagree with.
+  const directional = trades.filter(
+    (trade) => trade.openContext.trend !== "neutral",
+  );
+
+  const split = comparePartition(directional, (trade) =>
+    trade.direction === "long"
+      ? trade.openContext.trend === "bullish"
+      : trade.openContext.trend === "bearish",
+  );
+  if (!split) return null;
+
+  const withTrend = split.yesAvg;
+  const againstTrend = split.noAvg;
+  const alignedIsBetter = withTrend > againstTrend;
+
+  const evidence = gradeEvidence(
+    split.observations,
+    `${split.yes.length} trades with the prevailing trend, ${split.no.length} against it`,
+  );
+
+  return {
+    id: "trend-alignment",
+    kind: alignedIsBetter ? "strength" : "pattern",
+    title: alignedIsBetter
+      ? "Trading with the trend has worked better for you"
+      : "Your counter-trend entries have done better",
+    body: `${hedge(evidence)}positions taken in the same direction as the prevailing trend averaged ${withTrend.toFixed(1)}%, against ${againstTrend.toFixed(1)}% for those taken against it. ${
+      alignedIsBetter
+        ? "This is the more common pattern, and it is usually about how long a position survives rather than how often it is right."
+        : "That runs against the usual pattern, so treat it as a description of what your record contains rather than a rule to lean on."
+    }`,
+    evidence,
+  };
+}
+
 // --- Assembly ---------------------------------------------------------------
 
 /**
@@ -238,12 +354,17 @@ export function deriveInsights(
 ): { insights: BehaviourInsight[]; withheld: number } {
   const trades = closedTrades(workspace);
 
+  const withContext = contextTrades(workspace);
+
   const candidates = [
     marketStrength(trades),
     holdDuration(trades),
     payoffBalance(trades),
     tradingFrequency(workspace, now),
     researchToRecord(workspace),
+    // Conditions-based rules see only trades with evidence-grade context.
+    volatilityOutcome(withContext),
+    trendAlignment(withContext),
   ].filter((insight): insight is BehaviourInsight => insight !== null);
 
   const insights = candidates.filter((insight) => canSpeak(insight.evidence));

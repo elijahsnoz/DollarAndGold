@@ -170,6 +170,195 @@ function testEvidenceGating() {
   );
 }
 
+/** A trade carrying an entry-conditions snapshot from a given source. */
+function tradeWithContext(
+  symbol: string,
+  resultPct: number,
+  daysAgo: number,
+  context: {
+    regime?: "low" | "normal" | "elevated" | "high";
+    trend?: "bullish" | "bearish" | "neutral";
+    source?: string;
+  },
+  direction: "long" | "short" = "long",
+): JournalEntry {
+  const base = trade(symbol, direction === "long" ? resultPct : -resultPct, daysAgo);
+  const {
+    regime = "normal",
+    trend = "bullish",
+    source = "coingecko",
+  } = context;
+
+  return {
+    ...base,
+    id: `${base.id}-${regime}-${trend}-${source}-${direction}`,
+    direction,
+    // `trade()` computes exit from a long's perspective; recompute so the
+    // sign-corrected result equals resultPct regardless of direction.
+    exitPrice:
+      direction === "long"
+        ? 100 * (1 + resultPct / 100)
+        : 100 * (1 - resultPct / 100),
+    outcome: resultPct > 0 ? "win" : "loss",
+    openContext: {
+      symbol,
+      capturedAt: base.openedAt,
+      price: 100,
+      volatilityRegime: regime,
+      annualisedVolPct: regime === "high" ? 60 : 15,
+      atrPercent: 1,
+      trend,
+      trendConfidence: 60,
+      structure: "range",
+      source,
+    },
+  };
+}
+
+function testContextAwareLearning() {
+  section("Context-aware learning");
+
+  // Clear signal: losses in elevated volatility, wins in calm — and every
+  // snapshot captured live.
+  const live = workspace({
+    journal: [
+      tradeWithContext("XAUUSD", -8, 60, { regime: "high" }),
+      tradeWithContext("XAUUSD", -6, 55, { regime: "elevated" }),
+      tradeWithContext("XAUUSD", -7, 50, { regime: "high" }),
+      tradeWithContext("XAUUSD", 5, 45, { regime: "normal" }),
+      tradeWithContext("XAUUSD", 6, 40, { regime: "low" }),
+      tradeWithContext("XAUUSD", 4, 35, { regime: "normal" }),
+    ],
+  });
+
+  const liveInsights = deriveInsights(live, NOW).insights;
+  const volatility = liveInsights.find((i) => i.id === "volatility-outcome");
+
+  check("finds the volatility pattern on live context", Boolean(volatility));
+  check(
+    "identifies volatile conditions as the weaker ones",
+    volatility?.kind === "watch-out",
+    volatility?.title,
+  );
+  check(
+    "cites how the sample was split",
+    (volatility?.evidence.basis ?? "").includes("elevated volatility"),
+    volatility?.evidence.basis,
+  );
+
+  // THE guarantee for this layer: identical trades, simulated snapshots. A
+  // conclusion about conditions that never happened is worse than no
+  // conclusion, because it sounds specific.
+  const simulated = workspace({
+    journal: live.journal.map((t) => ({
+      ...t,
+      id: `${t.id}-sim`,
+      openContext: { ...t.openContext!, source: "simulated" },
+    })),
+  });
+
+  check(
+    "says NOTHING about conditions when context is simulated",
+    !deriveInsights(simulated, NOW).insights.some(
+      (i) => i.id === "volatility-outcome",
+    ),
+  );
+
+  // Same for price-anchored simulation, and for trades with no context at all.
+  const anchored = workspace({
+    journal: live.journal.map((t) => ({
+      ...t,
+      id: `${t.id}-anch`,
+      openContext: { ...t.openContext!, source: "simulated-anchored" },
+    })),
+  });
+  check(
+    "says nothing when context is price-anchored simulation",
+    !deriveInsights(anchored, NOW).insights.some(
+      (i) => i.id === "volatility-outcome",
+    ),
+  );
+
+  const noContext = workspace({
+    journal: live.journal.map(({ openContext: _drop, ...t }) => ({
+      ...t,
+      id: `${t.id}-none`,
+    })),
+  });
+  check(
+    "says nothing when trades predate context capture",
+    !deriveInsights(noContext, NOW).insights.some(
+      (i) => i.id === "volatility-outcome",
+    ),
+  );
+
+  // Trend alignment, and the neutral-trend exclusion.
+  const aligned = workspace({
+    journal: [
+      tradeWithContext("SPX", 6, 60, { trend: "bullish" }, "long"),
+      tradeWithContext("SPX", 5, 55, { trend: "bullish" }, "long"),
+      tradeWithContext("SPX", 7, 50, { trend: "bearish" }, "short"),
+      tradeWithContext("SPX", -5, 45, { trend: "bullish" }, "short"),
+      tradeWithContext("SPX", -6, 40, { trend: "bearish" }, "long"),
+      tradeWithContext("SPX", -4, 35, { trend: "bullish" }, "short"),
+    ],
+  });
+
+  const alignment = deriveInsights(aligned, NOW).insights.find(
+    (i) => i.id === "trend-alignment",
+  );
+  check("finds the trend-alignment pattern", Boolean(alignment));
+  check(
+    "reads with-trend as the stronger side",
+    alignment?.kind === "strength",
+    alignment?.title,
+  );
+
+  const allNeutral = workspace({
+    journal: aligned.journal.map((t) => ({
+      ...t,
+      id: `${t.id}-neutral`,
+      openContext: { ...t.openContext!, trend: "neutral" as const },
+    })),
+  });
+  check(
+    "a neutral trend has nothing to be aligned with",
+    !deriveInsights(allNeutral, NOW).insights.some(
+      (i) => i.id === "trend-alignment",
+    ),
+  );
+
+  // Coverage must be reported so silence carries its reason.
+  const mixed = deriveProfile(
+    workspace({
+      journal: [
+        ...live.journal.slice(0, 2),
+        ...live.journal.slice(2).map((t) => ({
+          ...t,
+          id: `${t.id}-sim2`,
+          openContext: { ...t.openContext!, source: "simulated" },
+        })),
+      ],
+    }),
+    NOW,
+  );
+
+  check(
+    "counts only usable context",
+    mixed.contextCoverage.withUsableContext === 2,
+    `${mixed.contextCoverage.withUsableContext}/${mixed.contextCoverage.closedTrades}`,
+  );
+  check(
+    "explains the excluded trades",
+    (mixed.contextCoverage.note ?? "").includes("excluded"),
+    mixed.contextCoverage.note ?? "null",
+  );
+  check(
+    "no note when coverage is complete",
+    deriveProfile(live, NOW).contextCoverage.note === null,
+  );
+}
+
 function testProfile() {
   section("Profile derivation");
 
@@ -717,6 +906,7 @@ function main() {
 
   testEvidenceGating();
   testProfile();
+  testContextAwareLearning();
   testMemories();
   testSilenceEngine();
   testBriefingComposition();
