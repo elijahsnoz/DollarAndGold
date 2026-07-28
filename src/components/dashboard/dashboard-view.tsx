@@ -6,7 +6,7 @@ import { ArrowRight, Bell, Sparkles, Star, Sunrise } from "lucide-react";
 
 import { PerformanceInsights } from "@/components/dashboard/insights";
 import { MarketMemories } from "@/components/intelligence/market-memories";
-import { UnderstandingPanel } from "@/components/intelligence/understanding-panel";
+import { LearningPanel } from "@/components/intelligence/learning-panel";
 import { TradingJournal } from "@/components/dashboard/journal";
 import { PersonalNotes } from "@/components/dashboard/notes";
 import { Badge } from "@/components/ui/badge";
@@ -89,7 +89,10 @@ export function DashboardView({ briefing }: { briefing: DailyBriefing }) {
           Placed directly under the briefing: these are what make the platform
           worth more this month than last, and burying them under the market
           widgets would say the opposite. */}
-      <UnderstandingPanel profile={profile} />
+      <LearningPanel
+        profile={profile}
+        closedTrades={state.journal.filter((t) => t.outcome !== "open").length}
+      />
 
       <MarketMemories memories={memories} resurfaced={resurfaced} />
 

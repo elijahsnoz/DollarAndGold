@@ -17,6 +17,7 @@ import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { MarketAnalysis } from "@/lib/ai/types";
+import { conditionsFromAnalysis } from "@/lib/context/derive";
 import { formatDateTime, formatPrice } from "@/lib/format";
 import { ASSET_CLASS_LABEL } from "@/lib/market/catalog";
 import { describeSource } from "@/lib/market/provenance";
@@ -60,15 +61,20 @@ export function AnalysisView({
   const { isWatched, toggleWatch, recordAnalysis } = useWorkspace();
   const watched = isWatched(asset.symbol);
 
-  // Log the visit once per asset so the dashboard has a recent-analyses list.
+  // Log the visit once per asset so the dashboard has a recent-analyses list,
+  // and record what the market was doing at that moment. The snapshot is free
+  // here: every figure it needs has already been computed for this page.
   React.useEffect(() => {
-    recordAnalysis({
-      symbol: asset.symbol,
-      assetName: asset.name,
-      trend: initialAnalysis.trend.direction,
-      confidence: initialAnalysis.trend.confidence,
-      viewedAt: Date.now(),
-    });
+    recordAnalysis(
+      {
+        symbol: asset.symbol,
+        assetName: asset.name,
+        trend: initialAnalysis.trend.direction,
+        confidence: initialAnalysis.trend.confidence,
+        viewedAt: Date.now(),
+      },
+      conditionsFromAnalysis(initialAnalysis, initialSeriesSource),
+    );
     // Intentionally keyed on the symbol alone — re-running on every trend
     // change would rewrite the entry on each poll.
     // eslint-disable-next-line react-hooks/exhaustive-deps

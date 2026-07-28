@@ -40,6 +40,13 @@ import type { BriefingItem, DeskMarket, PersonalBriefing } from "./types";
 const MAX_DESK_MARKETS = 5;
 const MAX_ITEMS = 4;
 
+/**
+ * Above this, an item is not merely worth knowing — it wants a decision.
+ * Set well above the materiality floor so the distinction stays meaningful; if
+ * everything needs attention, nothing does.
+ */
+const ATTENTION_THRESHOLD = 0.7;
+
 interface MarketContext {
   symbol: string;
   name: string;
@@ -184,7 +191,8 @@ function buildCandidates(contexts: MarketContext[]): BriefingItem[] {
       category: "market-move",
       symbol: context.symbol,
       headline: `${context.name} is ${Math.abs(context.changePercent).toFixed(2)}% ${direction}`,
-      why: `That is ${move.basis}. Moves this size relative to a market's own range are usually driven by something specific rather than by drift, so it is worth knowing what.`,
+      why: "Moves this size are usually driven by something specific, not drift.",
+      needsAttention: move.score >= ATTENTION_THRESHOLD,
       materiality: move.score,
       basis: move.basis,
     });
@@ -197,7 +205,8 @@ function buildCandidates(contexts: MarketContext[]): BriefingItem[] {
         category: "level",
         symbol: context.symbol,
         headline: `${context.name} is sitting on ${level.kind} at ${formatPrice(level.level, context.precision)}`,
-        why: `Price is ${proximity.basis} from a level it has respected before. This is where the market either confirms the level or invalidates it — informative either way, which is rarely true of the middle of a range.`,
+        why: "The market either confirms this level here or invalidates it.",
+        needsAttention: proximity.score >= ATTENTION_THRESHOLD,
         materiality: proximity.score,
         basis: proximity.basis,
       });

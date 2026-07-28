@@ -25,8 +25,9 @@ import {
   deskSymbolsFor,
   type MarketContext,
 } from "@/lib/briefing/compose";
-import { quietMessage } from "@/lib/briefing/materiality";
+import { nothingToday } from "@/lib/briefing/nothing-new";
 import type { BriefingItem, PersonalBriefing } from "@/lib/briefing/types";
+import { cn } from "@/lib/utils";
 import { formatPrice } from "@/lib/format";
 import { isLiveSource } from "@/lib/market/provenance";
 import { useWorkspace } from "@/lib/workspace/store";
@@ -122,7 +123,7 @@ export function MarketDesk() {
     );
   }
 
-  const quiet = quietMessage(briefing.markets.length);
+  const quiet = nothingToday(briefing.markets.length, briefing.considered);
 
   return (
     <div className="space-y-6">
@@ -172,25 +173,28 @@ export function MarketDesk() {
               <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">
                 {quiet.body}
               </p>
-              {briefing.considered > 0 && (
-                <p className="mt-3 text-xs text-muted-foreground/80">
-                  {briefing.considered} observations were checked and none met
-                  the bar for your attention.
-                </p>
-              )}
             </div>
           </div>
         ) : (
+          // Three answers at a glance: what happened, why it matters, and
+          // whether it needs a decision. Nothing else competes for the eye.
           <ul className="mt-5 space-y-4">
             {briefing.items.map((item) => {
               const Icon = CATEGORY_ICON[item.category];
               return (
                 <li key={item.id} className="flex gap-3.5">
-                  <span className="mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-full border border-gold/25 bg-gold/10 text-gold">
+                  <span
+                    className={cn(
+                      "mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-full border",
+                      item.needsAttention
+                        ? "border-gold/40 bg-gold/15 text-gold"
+                        : "border-border bg-foreground/[0.03] text-muted-foreground",
+                    )}
+                  >
                     <Icon className="h-3.5 w-3.5" />
                   </span>
                   <div className="min-w-0">
-                    <p className="font-medium leading-snug">
+                    <p className="flex flex-wrap items-center gap-x-2 font-medium leading-snug">
                       {item.symbol ? (
                         <Link
                           href={`/analysis/${item.symbol}`}
@@ -201,9 +205,17 @@ export function MarketDesk() {
                       ) : (
                         item.headline
                       )}
+                      {item.needsAttention && (
+                        <span className="rounded-full border border-gold/30 bg-gold/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-gold">
+                          Needs attention
+                        </span>
+                      )}
                     </p>
-                    <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
+                    <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
                       {item.why}
+                    </p>
+                    <p className="mt-1 text-[11px] text-muted-foreground/70">
+                      {item.basis}
                     </p>
                   </div>
                 </li>

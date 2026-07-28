@@ -15,6 +15,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { fetchConditions } from "@/lib/context/client";
 import { formatRelativeTime } from "@/lib/format";
 import { ASSETS, getAsset } from "@/lib/market/catalog";
 import { useWorkspace } from "@/lib/workspace/store";
@@ -87,17 +88,22 @@ function NoteDialog() {
   const [body, setBody] = React.useState("");
   const [symbol, setSymbol] = React.useState("");
 
-  const submit = (event: React.FormEvent) => {
+  const submit = async (event: React.FormEvent) => {
     event.preventDefault();
     if (!title.trim() || !body.trim()) {
       toast.error("Give the note a title and something to say.");
       return;
     }
 
+    // Only meaningful when the note is about a specific market, and bounded so
+    // it can never block someone saving their own words.
+    const conditions = symbol ? await fetchConditions(symbol) : undefined;
+
     saveNote({
       title: title.trim(),
       body: body.trim(),
       symbol: symbol || undefined,
+      context: conditions,
     });
 
     setTitle("");

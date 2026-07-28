@@ -1,4 +1,3 @@
-import type { VolatilityRegime } from "@/lib/ai/types";
 import { clamp } from "@/lib/utils";
 
 /**
@@ -84,53 +83,12 @@ export function assessLevelProximity(atrsAway: number): MaterialityVerdict {
 }
 
 /**
- * A change in volatility regime is often more useful than any single move — it
- * changes what every position on the book is worth risking.
- */
-export function assessVolatility(
-  regime: VolatilityRegime,
-  annualisedPct: number,
-): MaterialityVerdict {
-  const score =
-    regime === "high" ? 0.8 : regime === "elevated" ? 0.55 : regime === "low" ? 0.5 : 0.2;
-
-  const basis =
-    regime === "low"
-      ? `realised volatility is compressed at ${annualisedPct.toFixed(0)}% annualised`
-      : `realised volatility is ${regime} at ${annualisedPct.toFixed(0)}% annualised`;
-
-  return verdict(score, basis);
-}
-
-/**
  * Whether the whole briefing should stay quiet.
  *
  * Not simply "are there zero items" — a briefing scraping together three
  * barely-material observations is noise wearing a suit. Silence requires that
  * nothing cleared the floor.
  */
-/** Capitalise a basis phrase when it has to open a sentence. */
-export function asSentence(basis: string): string {
-  return basis.charAt(0).toUpperCase() + basis.slice(1);
-}
-
 export function shouldStaySilent(scores: number[]): boolean {
   return scores.every((score) => score < MATERIALITY_FLOOR);
-}
-
-/**
- * Phrasing for a quiet morning.
- *
- * Confident, not apologetic. "Nothing important happened" is a finding the user
- * can act on — it means their attention is free today — and it should read that
- * way rather than as the platform failing to find something.
- */
-export function quietMessage(marketCount: number): { headline: string; body: string } {
-  return {
-    headline: "Nothing needs your attention this morning",
-    body:
-      marketCount > 0
-        ? `Your ${marketCount === 1 ? "market is" : `${marketCount} markets are`} moving within their normal ranges, with no levels close enough to matter. That is genuinely useful information: there is nothing here worth changing your plans for today.`
-        : "There are no markets on your desk yet, so there is nothing to report. Star a few markets and this becomes your morning read.",
-  };
 }

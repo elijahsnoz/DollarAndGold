@@ -3,6 +3,7 @@
 import * as React from "react";
 import type { User } from "@supabase/supabase-js";
 
+import type { MarketConditions } from "@/lib/context/types";
 import { timeline } from "@/lib/memory/derive";
 import type { DatedMemory } from "@/lib/memory/types";
 import { deriveProfile } from "@/lib/personalisation/profile";
@@ -64,7 +65,8 @@ interface WorkspaceContextValue {
   deleteTrade(id: string): void;
 
   // --- Analyses ---
-  recordAnalysis(analysis: RecentAnalysis): void;
+  /** `conditions` is the Market Context snapshot, when one is available. */
+  recordAnalysis(analysis: RecentAnalysis, conditions?: MarketConditions): void;
 
   /** Records that today's briefing was seen. Drives the ritual greeting. */
   markBriefingSeen(day: string): void;
@@ -246,7 +248,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
           journal: prev.journal.filter((t) => t.id !== id),
         })),
 
-      recordAnalysis: (analysis) =>
+      recordAnalysis: (analysis, conditions) =>
         update((prev) => {
           const withoutDuplicate = prev.recentAnalyses.filter(
             (a) => a.symbol !== analysis.symbol,
@@ -266,6 +268,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
                 at: analysis.viewedAt,
                 trend: analysis.trend,
                 confidence: analysis.confidence,
+                conditions,
               },
             ].slice(-RESEARCH_LOG_LIMIT),
           };

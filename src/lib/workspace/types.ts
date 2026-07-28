@@ -1,3 +1,4 @@
+import type { MarketConditions } from "@/lib/context/types";
 import type { TrendDirection } from "@/lib/market/types";
 
 /** Everything a signed-in user accumulates. Persisted locally, synced remotely. */
@@ -19,6 +20,8 @@ export interface Note {
   title: string;
   body: string;
   updatedAt: number;
+  /** What the market was doing when this was written. Never backfilled. */
+  context?: MarketConditions;
 }
 
 export type TradeDirection = "long" | "short";
@@ -36,6 +39,16 @@ export interface JournalEntry {
   outcome: TradeOutcome;
   openedAt: number;
   closedAt?: number;
+  /**
+   * Market conditions at entry and exit.
+   *
+   * Captured at the moment, never reconstructed. Volatility at entry cannot be
+   * recovered from a trade record after the fact — re-deriving it from today's
+   * data and calling it history is how a learning system ends up confidently
+   * wrong. Either it was recorded then, or the question can't be asked.
+   */
+  openContext?: MarketConditions;
+  closeContext?: MarketConditions;
 }
 
 export interface RecentAnalysis {
@@ -59,6 +72,11 @@ export interface ResearchEvent {
   at: number;
   trend: TrendDirection;
   confidence: number;
+  /**
+   * Conditions when the market was studied. Free to capture here — the
+   * analysis page has already computed every figure a snapshot needs.
+   */
+  conditions?: MarketConditions;
 }
 
 export interface WorkspaceState {

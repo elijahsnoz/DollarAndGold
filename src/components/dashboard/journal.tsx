@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input, Textarea } from "@/components/ui/input";
 import { Label } from "@/components/ui/misc";
+import { fetchConditions } from "@/lib/context/client";
 import { formatPrice, formatSignedPercent } from "@/lib/format";
 import { ASSETS, getAsset } from "@/lib/market/catalog";
 import { cn } from "@/lib/utils";
@@ -157,6 +158,7 @@ function TradeDialog() {
   const [exitPrice, setExitPrice] = React.useState("");
   const [size, setSize] = React.useState("");
   const [thesis, setThesis] = React.useState("");
+  const [capturing, setCapturing] = React.useState(false);
 
   const reset = () => {
     setEntryPrice("");
@@ -165,7 +167,7 @@ function TradeDialog() {
     setThesis("");
   };
 
-  const submit = (event: React.FormEvent) => {
+  const submit = async (event: React.FormEvent) => {
     event.preventDefault();
 
     const entry = Number(entryPrice);
@@ -192,6 +194,12 @@ function TradeDialog() {
       outcome = raw > 0.0005 ? "win" : raw < -0.0005 ? "loss" : "breakeven";
     }
 
+    // Record what the market was doing right now. Bounded so a slow or failing
+    // snapshot can never stop someone saving their own trade.
+    setCapturing(true);
+    const conditions = await fetchConditions(symbol);
+    setCapturing(false);
+
     saveTrade({
       symbol,
       direction,
@@ -201,6 +209,11 @@ function TradeDialog() {
       thesis: thesis.trim(),
       outcome,
       closedAt: exit !== undefined ? Date.now() : undefined,
+      // An already-closed trade is being recorded after the fact, so the
+      // snapshot describes the exit, not the entry. Attributing it to entry
+      // would be inventing history the user never observed.
+      openContext: exit === undefined ? conditions : undefined,
+      closeContext: exit !== undefined ? conditions : undefined,
     });
 
     reset();
@@ -315,8 +328,8 @@ function TradeDialog() {
             />
           </div>
 
-          <Button type="submit" className="w-full">
-            Save trade
+          <Button type="submit" className="w-full" disabled={capturing}>
+            {capturing ? "Recording market conditions…" : "Save trade"}
           </Button>
         </form>
       </DialogContent>

@@ -16,10 +16,18 @@ import {
   type MarketContext,
 } from "@/lib/briefing/compose";
 import {
+  nothingLearnedYet,
+  nothingToday,
+  nothingUnusual,
+  notKnown,
+  stillDeveloping,
+} from "@/lib/briefing/nothing-new";
+import { conditionsFromAnalysis } from "@/lib/context/derive";
+import { describeConditions, isEvidenceGrade } from "@/lib/context/types";
+import {
   MATERIALITY_FLOOR,
   assessLevelProximity,
   assessMove,
-  quietMessage,
   shouldStaySilent,
 } from "@/lib/briefing/materiality";
 import { buildRitualContext, dayKey, daySeed } from "@/lib/briefing/ritual";
@@ -383,13 +391,8 @@ function testSilenceEngine() {
     !shouldStaySilent([0.1, MATERIALITY_FLOOR]),
   );
 
-  // The quiet message must read as a finding, not as an apology.
-  const quiet = quietMessage(3);
-  check(
-    "a quiet morning is framed as useful information",
-    quiet.body.includes("genuinely useful"),
-    quiet.body,
-  );
+  // Absence wording lives in one place (nothing-new.ts) and is covered there;
+  // a second copy here is how two surfaces start saying it differently.
 }
 
 function testBriefingComposition() {
@@ -543,6 +546,172 @@ function testRitual() {
   );
 }
 
+/** Minimal analysis fixture — only the fields a snapshot reads. */
+function analysisFixture(
+  overrides: {
+    structureSignal?: "bullish" | "bearish" | "neutral";
+    supports?: number[];
+    resistances?: number[];
+    atr?: number;
+    price?: number;
+  } = {},
+) {
+  const {
+    structureSignal = "bullish",
+    supports = [95],
+    resistances = [110],
+    atr = 2,
+    price = 100,
+  } = overrides;
+
+  return {
+    symbol: "XAUUSD",
+    generatedAt: NOW,
+    price,
+    trend: {
+      direction: "bullish" as const,
+      confidence: 62,
+      headline: "",
+      contributions: [
+        { label: "RSI (14)", signal: "bullish" as const, weight: 0.14 },
+        { label: "Market structure", signal: structureSignal, weight: 0.12 },
+      ],
+    },
+    volatility: {
+      regime: "normal" as const,
+      annualisedPct: 15,
+      atr,
+      atrPercent: (atr / price) * 100,
+      description: "",
+    },
+    supports,
+    resistances,
+  } as Parameters<typeof conditionsFromAnalysis>[0];
+}
+
+function testMarketContext() {
+  section("Market Context Engine");
+
+  const conditions = conditionsFromAnalysis(analysisFixture(), "coingecko");
+
+  check("captures the moment, not now", conditions.capturedAt === NOW);
+  check("records the trend", conditions.trend === "bullish");
+  check("records volatility regime", conditions.volatilityRegime === "normal");
+  check(
+    "derives structure from the trend signal",
+    conditions.structure === "higher-highs",
+    conditions.structure,
+  );
+  check(
+    "derives falling structure too",
+    conditionsFromAnalysis(analysisFixture({ structureSignal: "bearish" })).structure ===
+      "lower-lows",
+  );
+  check(
+    "falls back to range when structure is neutral",
+    conditionsFromAnalysis(analysisFixture({ structureSignal: "neutral" })).structure ===
+      "range",
+  );
+
+  // Nearest level must be measured in ATRs, and must pick the closer side.
+  check(
+    "finds the nearest level",
+    conditions.nearestLevel?.kind === "support",
+    JSON.stringify(conditions.nearestLevel),
+  );
+  check(
+    "measures distance in typical daily ranges",
+    conditions.nearestLevel?.atrsAway === 2.5,
+    String(conditions.nearestLevel?.atrsAway),
+  );
+  check(
+    "omits the level when there is no volatility reference",
+    conditionsFromAnalysis(analysisFixture({ atr: 0 })).nearestLevel === undefined,
+  );
+
+  // THE guarantee: conditions captured against simulated prices describe a
+  // market that does not exist, and must never be pooled with live
+  // observations to draw conclusions about someone's real behaviour.
+  check(
+    "live conditions are evidence-grade",
+    isEvidenceGrade(conditionsFromAnalysis(analysisFixture(), "coingecko")),
+  );
+  check(
+    "simulated conditions are NOT evidence-grade",
+    !isEvidenceGrade(conditionsFromAnalysis(analysisFixture(), "simulated")),
+  );
+  check(
+    "price-anchored simulation is NOT evidence-grade",
+    !isEvidenceGrade(
+      conditionsFromAnalysis(analysisFixture(), "simulated-anchored"),
+    ),
+  );
+  check(
+    "an unsourced snapshot is NOT evidence-grade",
+    !isEvidenceGrade(conditionsFromAnalysis(analysisFixture())),
+  );
+
+  check(
+    "describes itself readably",
+    describeConditions(conditions).includes("normal volatility"),
+    describeConditions(conditions),
+  );
+}
+
+function testNothingNew() {
+  section("Nothing New — honest absence");
+
+  const quiet = nothingToday(4, 12);
+  check("states what was checked", quiet.body.includes("12 observations"));
+  check(
+    "frames a quiet morning as useful",
+    quiet.body.includes("attention is free"),
+    quiet.body,
+  );
+
+  const noMarkets = nothingToday(0, 0);
+  check(
+    "distinguishes an empty desk from a quiet one",
+    noMarkets.headline !== quiet.headline,
+  );
+
+  const learning = nothingLearnedYet(2, 5);
+  check(
+    "says how much more history is needed",
+    learning.body.includes("3 more closed"),
+    learning.body,
+  );
+  check(
+    "does not conflate 'nothing happened' with 'we don't know yet'",
+    learning.headline !== quiet.headline,
+  );
+
+  const developing = stillDeveloping(3);
+  check(
+    "prefers waiting over guessing, and says so",
+    developing.body.includes("rather wait than guess"),
+  );
+
+  // Absence must never apologise or pad — that is what turns a finding into
+  // an excuse, and it is how a calm product starts sounding like a broken one.
+  const banned = ["unfortunately", "sorry", "check back", "stay tuned", "oops"];
+  const allCopy = [
+    quiet,
+    noMarkets,
+    learning,
+    developing,
+    nothingUnusual(3),
+    notKnown("the dollar"),
+  ]
+    .flatMap((message) => [message.headline, message.body])
+    .join(" ")
+    .toLowerCase();
+
+  for (const phrase of banned) {
+    check(`absence copy avoids "${phrase}"`, !allCopy.includes(phrase));
+  }
+}
+
 function main() {
   console.log("Running unit tests for the pure engines");
 
@@ -552,6 +721,8 @@ function main() {
   testSilenceEngine();
   testBriefingComposition();
   testRitual();
+  testMarketContext();
+  testNothingNew();
 
   console.log(`\n${"-".repeat(52)}`);
   if (failures.length === 0) {

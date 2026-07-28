@@ -19,14 +19,26 @@ export type BriefingCategory =
   | "behaviour"
   | "archive";
 
+/**
+ * One briefing item, shaped by the twenty-second rule.
+ *
+ * A reader must get all three answers at a glance: what happened (`headline`),
+ * why it matters (`why`), and whether it needs them (`needsAttention`). `why`
+ * is deliberately capped at roughly one short sentence — an observation that
+ * needs a paragraph to justify itself is either not important enough to lead
+ * with, or has not been thought through. The supporting number lives in
+ * `basis`, set smaller, for anyone who wants to check the reasoning.
+ */
 export interface BriefingItem {
   id: string;
   category: BriefingCategory;
   symbol?: string;
-  /** One line. The thing itself. */
+  /** What happened. One line. */
   headline: string;
-  /** Why it deserves attention today, in plain English. */
+  /** Why it matters. One short sentence — not a paragraph. */
   why: string;
+  /** Whether this is merely worth knowing, or actually needs acting on. */
+  needsAttention: boolean;
   /**
    * 0–1. How much this deserves the user's attention *relative to how this
    * market normally behaves*, not in absolute percentage terms.
