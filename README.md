@@ -58,7 +58,7 @@ break:
 | Quotes | Price is finite and positive, and sits inside the 24h range |
 | Series | High/low bound open/close, timestamps strictly increase, bar spacing is uniform |
 | Determinism | Repeated reads are byte-identical, and overlapping timeframes agree about the same instant |
-| Analysis | Across all 16 markets: confidence within [30, 88], **every support below price and every resistance above it**, RSI within [0, 100], the summary's "X of Y signals" fraction matches the contributions it came from |
+| Analysis | Across the whole catalog: confidence within [30, 88], **every support below price and every resistance above it**, RSI within [0, 100], the summary's "X of Y signals" fraction matches the contributions it came from |
 | Compliance | The disclaimer is present, simulated data is disclosed, confidence is explained as agreement rather than win probability, and no generated copy contains promise language |
 | Search & chat | Search finds markets, nonsense returns nothing, the assistant answers an indicator question, and an empty conversation is rejected |
 
@@ -80,6 +80,7 @@ run, described in [Known issues](#known-issues).
 | `/dashboard` | Daily briefing, recent analyses, alert centre, notes, trading journal, performance insights |
 | `/pricing` | Free / Pro / Enterprise, plus the FAQ that answers "is this financial advice?" |
 | `/sign-in` | Supabase auth (or an honest explanation when it isn't configured) |
+| `/admin` | Users and news, for accounts with `is_admin` set — see [Admin dashboard](#admin-dashboard) |
 
 Global search (`⌘K` / `Ctrl-K`) covers markets, currencies, stocks, crypto and
 news in one pass. The floating assistant is available on every page.
@@ -305,9 +306,28 @@ Copy `.env.example` to `.env.local`. Every variable is optional.
 
 1. Create a project at [supabase.com](https://supabase.com).
 2. Run [`supabase/schema.sql`](supabase/schema.sql) in the SQL editor. It creates
-   `profiles` and `workspaces`, enables row-level security with self-access-only
-   policies, and adds the sign-up trigger.
+   `profiles`, `workspaces` and `news_articles`, enables row-level security with
+   self-access-only policies, and adds the sign-up trigger.
 3. Add the URL and anon key to `.env.local`.
+
+### Admin dashboard
+
+`/admin` manages users (plan, admin access) and news (the articles that
+replace the sample feed). It needs Supabase configured, and needs an admin to
+already exist — nobody starts as one, so bootstrap the first admin once in the
+SQL editor:
+
+```sql
+update public.profiles set is_admin = true where email = 'you@example.com';
+```
+
+From there, admins can promote or demote other accounts from the Users tab.
+`news_articles` is checked category-by-category: a published article there
+takes over its category, and any category with nothing published keeps
+showing the bundled sample stories — the same per-symbol fallback shape
+`providers/composite.ts` uses for market data. See `is_admin()` and the
+`protect_privileged_profile_fields` trigger in `supabase/schema.sql` for how
+`plan`/`is_admin` are protected from being self-granted.
 
 ### Model
 
@@ -340,10 +360,12 @@ reserved exclusively for market data.
 ```text
 src/
 ├── app/
-│   ├── api/               markets · analysis · chat · news · search
+│   ├── api/               markets · analysis · chat · news · search · admin
 │   ├── analysis/[symbol]/ the analysis page
+│   ├── admin/             users · news (gated on `is_admin`)
 │   └── …                  markets · news · watchlist · dashboard · pricing · sign-in
 ├── components/
+│   ├── admin/             users table · news editor
 │   ├── analysis/          trend verdict · indicators · scenarios
 │   ├── charts/            price chart · sparkline · token→SVG colour bridge
 │   ├── chat/              floating assistant
@@ -356,8 +378,8 @@ src/
 └── lib/
     ├── ai/                analysis · narrate · chat · briefing
     ├── market/            types · catalog · simulation · provider · indicators
-    ├── news/              types · provider
-    ├── supabase/          browser · server · config
+    ├── news/              types · provider (sample + Supabase, with fallback)
+    ├── supabase/          browser · server · public · config
     └── workspace/         store · backends · types
 ```
 

@@ -1,5 +1,12 @@
 import { HOUR, seedFromString } from "@/lib/market/simulation";
-import type { NewsArticle, NewsCategory, NewsProvider } from "./types";
+import { getSupabasePublicClient } from "@/lib/supabase/public";
+import type {
+  ImpactDirection,
+  ImpactMagnitude,
+  NewsArticle,
+  NewsCategory,
+  NewsProvider,
+} from "./types";
 
 /**
  * Editorial sample feed.
@@ -340,9 +347,113 @@ export class SampleNewsProvider implements NewsProvider {
   }
 }
 
+interface NewsArticleRow {
+  id: string;
+  headline: string;
+  source: string;
+  category: NewsCategory;
+  symbols: string[];
+  summary: string;
+  why_it_matters: string;
+  impact_direction: ImpactDirection;
+  impact_magnitude: ImpactMagnitude;
+  impact_note: string;
+  url: string | null;
+  published_at: string;
+}
+
+function rowToArticle(row: NewsArticleRow): NewsArticle {
+  return {
+    id: row.id,
+    headline: row.headline,
+    source: row.source,
+    publishedAt: new Date(row.published_at).getTime(),
+    category: row.category,
+    symbols: row.symbols,
+    summary: row.summary,
+    whyItMatters: row.why_it_matters,
+    impact: {
+      direction: row.impact_direction,
+      magnitude: row.impact_magnitude,
+      note: row.impact_note,
+    },
+    url: row.url ?? undefined,
+  };
+}
+
+/**
+ * Admin-authored articles, published through `/admin/news`.
+ *
+ * Reads with the anon client: RLS already restricts this to `published =
+ * true` rows for an unauthenticated request, so no session is needed.
+ */
+export class SupabaseNewsProvider implements NewsProvider {
+  readonly id = "supabase";
+
+  async getArticles(options?: {
+    category?: NewsCategory;
+    symbol?: string;
+    limit?: number;
+  }): Promise<NewsArticle[]> {
+    const client = getSupabasePublicClient();
+    if (!client) return [];
+
+    let query = client
+      .from("news_articles")
+      .select(
+        "id, headline, source, category, symbols, summary, why_it_matters, impact_direction, impact_magnitude, impact_note, url, published_at",
+      )
+      .eq("published", true)
+      .order("published_at", { ascending: false });
+
+    const { category, symbol, limit } = options ?? {};
+    if (category) query = query.eq("category", category);
+    if (symbol) query = query.contains("symbols", [symbol.toUpperCase()]);
+    if (limit) query = query.limit(limit);
+
+    const { data, error } = await query;
+    if (error) throw error;
+
+    return (data as NewsArticleRow[]).map(rowToArticle);
+  }
+}
+
+/**
+ * Tries each source in order and keeps the first non-empty result — the same
+ * per-request fallback shape `providers/composite.ts` uses for market data.
+ * An admin who has published nothing yet for a given category should still
+ * see the sample feed for it, not an empty page.
+ */
+class CompositeNewsProvider implements NewsProvider {
+  readonly id = "composite";
+
+  constructor(private readonly sources: NewsProvider[]) {}
+
+  async getArticles(options?: {
+    category?: NewsCategory;
+    symbol?: string;
+    limit?: number;
+  }): Promise<NewsArticle[]> {
+    for (const source of this.sources) {
+      try {
+        const articles = await source.getArticles(options);
+        if (articles.length > 0) return articles;
+      } catch {
+        // Benched for this call — fall through to the next source.
+      }
+    }
+    return [];
+  }
+}
+
 let cached: NewsProvider | null = null;
 
 export function getNewsProvider(): NewsProvider {
-  if (!cached) cached = new SampleNewsProvider();
+  if (!cached) {
+    cached = new CompositeNewsProvider([
+      new SupabaseNewsProvider(),
+      new SampleNewsProvider(),
+    ]);
+  }
   return cached;
 }

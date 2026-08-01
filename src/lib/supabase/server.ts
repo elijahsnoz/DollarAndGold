@@ -44,3 +44,43 @@ export async function getCurrentUser() {
   } = await supabase.auth.getUser();
   return user;
 }
+
+/** The signed-in user's `profiles` row, or null when signed out or in demo mode. */
+export async function getCurrentProfile() {
+  const supabase = await getSupabaseServerClient();
+  if (!supabase) return null;
+
+  const user = await getCurrentUser();
+  if (!user) return null;
+
+  const { data } = await supabase
+    .from("profiles")
+    .select("id, email, full_name, plan, is_admin")
+    .eq("id", user.id)
+    .single();
+
+  return data;
+}
+
+/**
+ * Gate for `/api/admin/*` route handlers.
+ * RLS enforces the same rule at the database layer — this exists so a
+ * rejected request gets a clear status and message instead of an opaque
+ * Postgres error.
+ */
+export async function requireAdmin(): Promise<
+  | { ok: true; supabase: SupabaseClient }
+  | { ok: false; status: number; error: string }
+> {
+  const supabase = await getSupabaseServerClient();
+  if (!supabase) {
+    return { ok: false, status: 400, error: "Admin isn't configured." };
+  }
+
+  const profile = await getCurrentProfile();
+  if (!profile?.is_admin) {
+    return { ok: false, status: 403, error: "Not authorized." };
+  }
+
+  return { ok: true, supabase };
+}

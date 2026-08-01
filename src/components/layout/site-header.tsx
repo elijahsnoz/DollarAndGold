@@ -4,7 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTheme } from "next-themes";
-import { LayoutDashboard, LogOut, Menu, Moon, Search, Sun, X } from "lucide-react";
+import { LayoutDashboard, LogOut, Menu, Moon, Search, Shield, Sun, X } from "lucide-react";
 
 import { Logo } from "@/components/layout/logo";
 import { NAV_ITEMS } from "@/components/layout/nav-config";
@@ -18,6 +18,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useIsAdmin } from "@/lib/hooks/use-is-admin";
 import { useWorkspace } from "@/lib/workspace/store";
 import { cn } from "@/lib/utils";
 
@@ -27,6 +28,7 @@ export function SiteHeader() {
   const [mobileOpen, setMobileOpen] = React.useState(false);
   const [searchOpen, setSearchOpen] = React.useState(false);
   const { user, demoMode, signOut } = useWorkspace();
+  const isAdmin = useIsAdmin(user);
 
   // The header only earns its border and blur once content is behind it.
   React.useEffect(() => {
@@ -138,6 +140,14 @@ export function SiteHeader() {
                       Dashboard
                     </Link>
                   </DropdownMenuItem>
+                  {isAdmin && (
+                    <DropdownMenuItem asChild>
+                      <Link href="/admin">
+                        <Shield />
+                        Admin
+                      </Link>
+                    </DropdownMenuItem>
+                  )}
                   <DropdownMenuItem onSelect={() => void signOut()}>
                     <LogOut />
                     Sign out
