@@ -5,7 +5,7 @@ import Link from "next/link";
 
 import { useLiveQuotes } from "@/lib/hooks/use-live-quotes";
 import { formatPrice, formatSignedPercent } from "@/lib/format";
-import type { MarketSnapshot } from "@/lib/market/snapshot";
+import type { MarketQuote } from "@/lib/market/snapshot";
 import { cn } from "@/lib/utils";
 
 /**
@@ -15,7 +15,7 @@ import { cn } from "@/lib/utils";
  * hidden from assistive tech, and the animation is disabled entirely under
  * `prefers-reduced-motion` (handled globally in `globals.css`).
  */
-export function TickerTape({ snapshots }: { snapshots: MarketSnapshot[] }) {
+export function TickerTape({ snapshots }: { snapshots: MarketQuote[] }) {
   const initialQuotes = React.useMemo(
     () => snapshots.map((s) => s.quote),
     [snapshots],

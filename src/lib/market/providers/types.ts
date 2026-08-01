@@ -22,6 +22,15 @@ export interface MarketDataSource {
   covers(symbol: string): boolean;
   getQuote(symbol: string): Promise<Quote | null>;
   getSeries(symbol: string, timeframe: Timeframe): Promise<Series | null>;
+  /**
+   * Optional: fetch several quotes in one upstream call. The composite uses
+   * this instead of calling `getQuote` once per symbol when present — a
+   * ticker asking for dozens of quotes at once must not turn into dozens of
+   * concurrent single-symbol requests against a source with a tight
+   * anonymous rate limit. A symbol this source can't answer is simply absent
+   * from the returned map.
+   */
+  getQuotes?(symbols: string[]): Promise<Map<string, Quote>>;
 }
 
 /** Where a given figure actually came from. Surfaced in the UI. */

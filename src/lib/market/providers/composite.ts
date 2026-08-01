@@ -79,8 +79,52 @@ export class CompositeProvider implements MarketDataProvider {
     return { ...simulated, source: "simulated" };
   }
 
+  /**
+   * Groups symbols by each one's top eligible source and batches through
+   * `source.getQuotes` where the source supports it, rather than firing one
+   * concurrent `getQuote` per symbol regardless of how many were asked for.
+   * Anything a source doesn't support batching for — or doesn't return —
+   * falls back to the normal per-symbol chain, so correctness is unchanged
+   * for every source that doesn't opt in.
+   */
   async getQuotes(symbols: string[]): Promise<Quote[]> {
-    return Promise.all(symbols.map((symbol) => this.getQuote(symbol)));
+    const resolved = new Map<string, Quote>();
+    const remaining: string[] = [];
+
+    const groups = new Map<MarketDataSource, string[]>();
+    for (const symbol of symbols) {
+      const [top] = this.eligible(symbol);
+      if (top?.getQuotes) {
+        const group = groups.get(top) ?? [];
+        group.push(symbol);
+        groups.set(top, group);
+      } else {
+        remaining.push(symbol);
+      }
+    }
+
+    await Promise.all(
+      [...groups].map(async ([source, batchSymbols]) => {
+        try {
+          const batch = await source.getQuotes!(batchSymbols);
+          for (const symbol of batchSymbols) {
+            const hit = batch.get(symbol.toUpperCase());
+            if (hit) resolved.set(symbol, hit);
+            else remaining.push(symbol);
+          }
+        } catch (error) {
+          this.bench(source, error);
+          remaining.push(...batchSymbols);
+        }
+      }),
+    );
+
+    const singles = await Promise.all(
+      remaining.map((symbol) => this.getQuote(symbol)),
+    );
+    remaining.forEach((symbol, i) => resolved.set(symbol, singles[i]));
+
+    return symbols.map((symbol) => resolved.get(symbol)!);
   }
 
   async getSeries(symbol: string, timeframe: Timeframe): Promise<Series> {

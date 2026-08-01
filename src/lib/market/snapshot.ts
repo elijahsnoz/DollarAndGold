@@ -39,3 +39,24 @@ export async function getMarketSnapshots(
     }),
   );
 }
+
+export interface MarketQuote {
+  asset: Asset;
+  quote: Quote;
+}
+
+/**
+ * Quotes only, no series — for surfaces like the ticker tape that show price
+ * and change across a large symbol set and never render a sparkline. Uses
+ * the provider's batched `getQuotes`, which groups by source and issues one
+ * upstream call per source instead of one per symbol.
+ */
+export async function getMarketQuotes(
+  symbols: readonly string[],
+): Promise<MarketQuote[]> {
+  const provider = getMarketDataProvider();
+  const assets = symbols.map((symbol) => requireAsset(symbol));
+  const quotes = await provider.getQuotes(assets.map((a) => a.symbol));
+
+  return assets.map((asset, i) => ({ asset, quote: quotes[i] }));
+}

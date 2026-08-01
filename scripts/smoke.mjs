@@ -191,6 +191,15 @@ async function testAnalysis() {
     "XAUUSD", "BTCUSD", "ETHUSD", "EURUSD", "GBPUSD", "USDJPY",
     "NDX", "SPX", "WTIUSD", "XAGUSD", "SOLUSD", "DXY",
     "AUDUSD", "AAPL", "NVDA", "TSLA",
+    "BNBUSD", "XRPUSD", "TRXUSD", "DOGEUSD", "ZECUSD", "XMRUSD",
+    "ADAUSD", "LINKUSD", "XLMUSD", "BCHUSD", "LTCUSD", "HBARUSD",
+    "SHIBUSD", "SUIUSD", "AVAXUSD", "UNIUSD", "NEARUSD", "TAOUSD",
+    "AAVEUSD", "DOTUSD",
+    "USDCAD", "USDCHF", "NZDUSD", "EURGBP", "EURJPY", "GBPJPY",
+    "EURCHF", "EURAUD", "EURCAD", "EURNZD", "GBPAUD", "GBPCAD",
+    "GBPCHF", "GBPNZD", "AUDJPY", "AUDCAD", "AUDCHF", "AUDNZD",
+    "CADJPY", "CHFJPY", "NZDJPY", "USDSEK", "USDNOK", "USDZAR",
+    "USDMXN", "USDSGD", "USDHKD", "USDCNY",
   ];
 
   for (const symbol of symbols) {
