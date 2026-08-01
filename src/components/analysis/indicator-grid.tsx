@@ -1,3 +1,4 @@
+import { GlossaryTerm } from "@/components/education/glossary-term";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import type { IndicatorReading } from "@/lib/market/types";
@@ -23,7 +24,7 @@ export function IndicatorGrid({ indicators }: { indicators: IndicatorReading[] }
           <div className="flex items-start justify-between gap-3">
             <div>
               <p className="text-sm font-medium text-muted-foreground">
-                {indicator.label}
+                <GlossaryTerm term={indicator.key}>{indicator.label}</GlossaryTerm>
               </p>
               <p className="tabular mt-1 text-lg font-semibold tracking-tight">
                 {indicator.value}

@@ -7,6 +7,7 @@ import { PriceChart } from "@/components/charts/price-chart";
 import { ChangePill } from "@/components/common/change-pill";
 import { DataSourceBadge } from "@/components/common/data-source-badge";
 import { Disclaimer } from "@/components/common/disclaimer";
+import { GlossaryTerm } from "@/components/education/glossary-term";
 import { IndicatorGrid } from "@/components/analysis/indicator-grid";
 import { ScenarioCards } from "@/components/analysis/scenario-cards";
 import { TrendVerdict } from "@/components/analysis/trend-verdict";
@@ -242,7 +243,7 @@ export function AnalysisView({
 
           <Card className="p-6">
             <p className="text-xs font-medium uppercase tracking-widest text-muted-foreground">
-              Volatility
+              <GlossaryTerm term="volatility">Volatility</GlossaryTerm>
             </p>
             <p className="tabular mt-2 text-2xl font-semibold tracking-tight">
               {analysis.volatility.annualisedPct.toFixed(1)}%
@@ -412,6 +413,7 @@ function LevelsPanel({
       <div className="mt-4 space-y-4">
         <LevelRow
           label="Resistance"
+          glossaryTerm="resistance"
           tone="bear"
           values={resistances}
           price={price}
@@ -427,6 +429,7 @@ function LevelsPanel({
         </div>
         <LevelRow
           label="Support"
+          glossaryTerm="support"
           tone="bull"
           values={supports}
           price={price}
@@ -439,12 +442,14 @@ function LevelsPanel({
 
 function LevelRow({
   label,
+  glossaryTerm,
   tone,
   values,
   price,
   precision,
 }: {
   label: string;
+  glossaryTerm: "support" | "resistance";
   tone: "bull" | "bear";
   values: number[];
   price: number;
@@ -474,7 +479,7 @@ function LevelRow({
               )}
             />
             <span className="text-xs uppercase tracking-wider text-muted-foreground">
-              {label}
+              <GlossaryTerm term={glossaryTerm}>{label}</GlossaryTerm>
             </span>
             <span className="tabular ml-auto font-medium">
               {formatPrice(value, precision)}

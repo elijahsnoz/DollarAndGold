@@ -1,3 +1,4 @@
+import { findGlossaryMatch } from "@/lib/education/glossary";
 import { formatPrice, formatSignedPercent } from "@/lib/format";
 import { ASSETS, getAsset } from "@/lib/market/catalog";
 import { getMarketDataProvider } from "@/lib/market/provider";
@@ -187,34 +188,8 @@ export async function streamChatReply(
  * straight from the analysis engine.
  */
 export async function ruleBasedReply(question: string): Promise<string> {
-  const q = question.toLowerCase();
-
-  const glossary: { keys: string[]; answer: string }[] = [
-    {
-      keys: ["rsi", "relative strength"],
-      answer: `**RSI** — the Relative Strength Index — measures how much of a market's recent movement has been upward versus downward, on a scale of 0 to 100.\n\nAbove 70 is called "overbought": the market has risen hard and fast. Below 30 is "oversold". The common mistake is treating those as buy and sell signals. They are not. A strong trend can hold RSI above 70 for weeks. It is better read as a measure of how stretched the current move is — and therefore how sharp a pullback might be when it comes.`,
-    },
-    {
-      keys: ["macd"],
-      answer: `**MACD** compares two moving averages of price — a fast one and a slow one — and plots the gap between them.\n\nWhen the fast average pulls above the slow one, short-term momentum is running ahead of the medium-term trend, which is read as bullish. When it falls below, the opposite. The "signal line" is a smoothed version of that gap; the bars you see (the histogram) are the distance between the two. Growing bars mean momentum is accelerating, shrinking bars mean it is fading — and momentum usually fades before price turns.`,
-    },
-    {
-      keys: ["atr", "average true range", "volatility"],
-      answer: `**ATR** — Average True Range — is the average distance a market travels in a given period, including gaps.\n\nIt is the single most practical number on a chart, because it tells you what "normal" looks like. If a market moves $30 a day on average, a $25 stop will be hit by ordinary noise regardless of whether your directional view was right. Position sizing and stop placement should be built on ATR, not on how much you are willing to lose.`,
-    },
-    {
-      keys: ["support", "resistance"],
-      answer: `**Support** is a price where buyers have repeatedly stepped in before; **resistance** is where sellers have. They are not magic lines — they are memory. Enough participants remember what happened at that level to act there again.\n\nWhat matters is not touching a level but closing beyond it, on real volume. A wick through resistance that closes back below is a failed breakout, and those often reverse hard in the opposite direction.`,
-    },
-    {
-      keys: ["moving average", "sma", "ema"],
-      answer: `A **moving average** is the average price over the last N periods, redrawn each bar. It strips out noise so the underlying direction is visible.\n\nAn EMA (exponential) weights recent prices more heavily, so it turns faster than an SMA (simple). The usual read: price above a rising average means buyers are in control; a short average crossing above a longer one is the classic shape of a developing uptrend. They lag by construction — they describe what has happened, not what will.`,
-    },
-  ];
-
-  for (const entry of glossary) {
-    if (entry.keys.some((k) => q.includes(k))) return entry.answer;
-  }
+  const glossaryMatch = findGlossaryMatch(question);
+  if (glossaryMatch) return glossaryMatch.full;
 
   const symbols = detectSymbols(question);
   if (symbols.length > 0) {
