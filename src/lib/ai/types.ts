@@ -63,3 +63,18 @@ export interface ChatMessage {
   content: string;
   createdAt: number;
 }
+
+/**
+ * A Market Memory, trimmed to what the chat assistant needs.
+ *
+ * Sent from the client, which is the only place `WorkspaceState` lives — the
+ * server has no other way to see a user's own notes. Only non-milestone kinds
+ * are worth sending: a milestone is congratulatory, not context.
+ */
+export interface ChatMemoryContext {
+  symbol?: string;
+  kind: "observation" | "trade" | "research" | "behaviour";
+  title: string;
+  body: string;
+  occurredAt: number;
+}

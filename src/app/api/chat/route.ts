@@ -19,6 +19,20 @@ const BodySchema = z.object({
     .min(1)
     // Keep the context window bounded — the assistant only needs recent turns.
     .max(24),
+  // Market Memories live client-side only (see `WorkspaceState`) — this is the
+  // one way the server ever sees them, and only for the current request.
+  memories: z
+    .array(
+      z.object({
+        symbol: z.string().optional(),
+        kind: z.enum(["observation", "trade", "research", "behaviour"]),
+        title: z.string().max(200),
+        body: z.string().max(1000),
+        occurredAt: z.number(),
+      }),
+    )
+    .max(12)
+    .optional(),
 });
 
 /**
@@ -45,12 +59,12 @@ export async function POST(request: Request) {
   // analysis engine. Same interface, narrower range.
   if (!isAIEnabled()) {
     const last = parsed.messages[parsed.messages.length - 1];
-    const reply = await ruleBasedReply(last.content);
+    const reply = await ruleBasedReply(last.content, parsed.memories);
     return new Response(reply, { headers });
   }
 
   try {
-    const stream = await streamChatReply(parsed.messages);
+    const stream = await streamChatReply(parsed.messages, parsed.memories);
     return new Response(stream, { headers });
   } catch {
     return Response.json(

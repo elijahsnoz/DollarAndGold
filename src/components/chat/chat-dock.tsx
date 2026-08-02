@@ -6,8 +6,12 @@ import { ArrowUp, Bot, Sparkles, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/input";
-import type { ChatMessage } from "@/lib/ai/types";
+import type { ChatMemoryContext, ChatMessage } from "@/lib/ai/types";
 import { cn } from "@/lib/utils";
+import { useWorkspace } from "@/lib/workspace/store";
+
+/** Caps how much of the Market Memories archive rides along with a chat request. */
+const MAX_MEMORIES = 10;
 
 const SUGGESTIONS = [
   "Analyse Gold.",
@@ -38,6 +42,7 @@ export function ChatDock() {
   const [messages, setMessages] = React.useState<ChatMessage[]>([GREETING]);
   const [input, setInput] = React.useState("");
   const [streaming, setStreaming] = React.useState(false);
+  const { memories } = useWorkspace();
 
   const scrollRef = React.useRef<HTMLDivElement>(null);
   const inputRef = React.useRef<HTMLTextAreaElement>(null);
@@ -78,11 +83,27 @@ export function ChatDock() {
       setInput("");
       setStreaming(true);
 
+      // Only non-milestone kinds carry context worth sending — a milestone is
+      // congratulatory, not something the assistant needs to reason about.
+      const memoryContext: ChatMemoryContext[] = memories
+        .filter(
+          (m): m is typeof m & { kind: ChatMemoryContext["kind"] } =>
+            m.kind !== "milestone",
+        )
+        .slice(0, MAX_MEMORIES)
+        .map((m) => ({
+          symbol: m.symbol,
+          kind: m.kind,
+          title: m.title,
+          body: m.body,
+          occurredAt: m.occurredAt,
+        }));
+
       try {
         const response = await fetch("/api/chat", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ messages: history }),
+          body: JSON.stringify({ messages: history, memories: memoryContext }),
         });
 
         if (!response.ok || !response.body) {
@@ -119,7 +140,7 @@ export function ChatDock() {
         setStreaming(false);
       }
     },
-    [messages, streaming],
+    [messages, streaming, memories],
   );
 
   if (hidden) return null;
