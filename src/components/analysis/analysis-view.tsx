@@ -9,6 +9,7 @@ import { DataSourceBadge } from "@/components/common/data-source-badge";
 import { Disclaimer } from "@/components/common/disclaimer";
 import { GlossaryTerm } from "@/components/education/glossary-term";
 import { IndicatorGrid } from "@/components/analysis/indicator-grid";
+import { MarketTimeline } from "@/components/analysis/market-timeline";
 import { ScenarioCards } from "@/components/analysis/scenario-cards";
 import { TrendVerdict } from "@/components/analysis/trend-verdict";
 import { NewsCard } from "@/components/news/news-card";
@@ -17,6 +18,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { buildTimeline } from "@/lib/ai/timeline";
 import type { MarketAnalysis } from "@/lib/ai/types";
 import { conditionsFromAnalysis } from "@/lib/context/derive";
 import { formatDateTime, formatPrice } from "@/lib/format";
@@ -154,6 +156,18 @@ export function AnalysisView({
     [analysis.resistances, analysis.supports, asset.precision],
   );
 
+  const timelineEvents = React.useMemo(
+    () =>
+      buildTimeline({
+        candles,
+        supports: analysis.supports,
+        resistances: analysis.resistances,
+        news: analysis.news,
+        precision: asset.precision,
+      }),
+    [candles, analysis.supports, analysis.resistances, analysis.news, asset.precision],
+  );
+
   return (
     <div className="space-y-8">
       {/* --- Header --- */}
@@ -257,6 +271,20 @@ export function AnalysisView({
           </Card>
         </div>
       </div>
+
+      {/* --- Timeline --- */}
+      <section>
+        <h2 className="text-lg font-semibold tracking-tight">
+          How this developed
+        </h2>
+        <p className="mt-1.5 text-sm text-muted-foreground">
+          Major moves, trend changes, level breaks and news for this window,
+          newest first.
+        </p>
+        <div className="mt-5">
+          <MarketTimeline events={timelineEvents} />
+        </div>
+      </section>
 
       {/* --- Summary --- */}
       <Card className="p-6">
