@@ -15,6 +15,18 @@ import { useWorkspace } from "@/lib/workspace/store";
 
 type Cadence = "today" | "week";
 
+interface CacheEntry {
+  data: Record<string, CadenceEvent[]>;
+  expiresAt: number;
+}
+
+/**
+ * Timeline events are gated by materiality, not live ticks — they don't
+ * change from one tab flip to the next, so there's no reason to re-hit the
+ * API every time someone switches between "Today" and "This week".
+ */
+const CACHE_TTL_MS = 2 * 60_000;
+
 /**
  * Watchlist Intelligence: the desk read at two cadences instead of a static
  * list. See `lib/briefing/cadence.ts` for why this is two surfaces rather
@@ -27,12 +39,20 @@ export function WatchlistIntelligence({ symbols }: { symbols: string[] }) {
   const [cadence, setCadence] = React.useState<Cadence>("today");
   const [eventsBySymbol, setEventsBySymbol] = React.useState<Record<string, CadenceEvent[]>>({});
   const [loading, setLoading] = React.useState(false);
+  const cache = React.useRef(new Map<string, CacheEntry>());
 
   const symbolsKey = symbols.join(",");
+  const cacheKey = `${symbolsKey}:${cadence}`;
 
   React.useEffect(() => {
     if (!symbolsKey) {
       setEventsBySymbol({});
+      return;
+    }
+
+    const hit = cache.current.get(cacheKey);
+    if (hit && hit.expiresAt > Date.now()) {
+      setEventsBySymbol(hit.data);
       return;
     }
 
@@ -46,7 +66,12 @@ export function WatchlistIntelligence({ symbols }: { symbols: string[] }) {
     })
       .then((response) => (response.ok ? response.json() : null))
       .then((data) => {
-        if (!cancelled) setEventsBySymbol(data?.eventsBySymbol ?? {});
+        if (cancelled) return;
+        const events = data?.eventsBySymbol ?? {};
+        setEventsBySymbol(events);
+        // A failed fetch is never cached, the same rule the server-side
+        // provider cache follows — the next visit to this tab just retries.
+        cache.current.set(cacheKey, { data: events, expiresAt: Date.now() + CACHE_TTL_MS });
       })
       .catch(() => {
         if (!cancelled) setEventsBySymbol({});
@@ -58,7 +83,7 @@ export function WatchlistIntelligence({ symbols }: { symbols: string[] }) {
     return () => {
       cancelled = true;
     };
-  }, [symbolsKey, cadence]);
+  }, [symbolsKey, cadence, cacheKey]);
 
   if (symbols.length === 0) return null;
 
