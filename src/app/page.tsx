@@ -9,25 +9,43 @@ import {
   Roadmap,
   SectionHeading,
 } from "@/components/landing/sections";
-import { MarketGrid } from "@/components/markets/market-grid";
+import { MarketCatalog } from "@/components/markets/market-catalog";
 import { TickerTape } from "@/components/markets/ticker-tape";
 import { Button } from "@/components/ui/button";
-import { ASSETS, FEATURED_SYMBOLS } from "@/lib/market/catalog";
+import { ASSETS } from "@/lib/market/catalog";
 import { getMarketQuotes, getMarketSnapshots } from "@/lib/market/snapshot";
+import type { AssetClass } from "@/lib/market/types";
 
 /** Prices move constantly, so the landing page is rendered per request. */
 export const dynamic = "force-dynamic";
 
 // Every currency pair and crypto token in the catalog — the ticker is the
-// surface built to show a large symbol set at a glance, so it isn't limited
-// to the nine featured markets the way the grid below deliberately is.
+// surface built to show a large symbol set at a glance.
 const TICKER_SYMBOLS = ASSETS.filter(
   (asset) => asset.assetClass === "forex" || asset.assetClass === "crypto",
 ).map((asset) => asset.symbol);
 
+// A taste of every asset class, not just the majors — the grid below this
+// is a preview, not the full catalog (that's /markets), so it draws a
+// couple of markets from each class rather than defaulting to the same
+// handful of large-cap names every time.
+const PREVIEW_CLASS_ORDER: AssetClass[] = [
+  "commodity",
+  "crypto",
+  "forex",
+  "index",
+  "energy",
+  "stock",
+];
+const PREVIEW_SYMBOLS = PREVIEW_CLASS_ORDER.flatMap((assetClass) =>
+  ASSETS.filter((asset) => asset.assetClass === assetClass)
+    .slice(0, 2)
+    .map((asset) => asset.symbol),
+);
+
 export default async function HomePage() {
   const [snapshots, tickerQuotes] = await Promise.all([
-    getMarketSnapshots(FEATURED_SYMBOLS),
+    getMarketSnapshots(PREVIEW_SYMBOLS),
     getMarketQuotes(TICKER_SYMBOLS),
   ]);
 
@@ -42,19 +60,19 @@ export default async function HomePage() {
           <SectionHeading
             align="left"
             eyebrow="Live markets"
-            title="Nine markets, one view."
+            title="Across every asset class."
             lede="Prices update as you watch. Open any card for its full market intelligence."
           />
           <Button asChild variant="outline" className="shrink-0">
             <Link href="/markets">
-              All markets
+              All {ASSETS.length} markets
               <ArrowRight />
             </Link>
           </Button>
         </div>
 
         <div className="mt-10">
-          <MarketGrid snapshots={snapshots.slice(0, 6)} />
+          <MarketCatalog snapshots={snapshots} />
         </div>
       </section>
 

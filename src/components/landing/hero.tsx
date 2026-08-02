@@ -3,6 +3,7 @@ import { Activity, ArrowRight } from "lucide-react";
 
 import { WorldMap } from "@/components/landing/world-map";
 import { Button } from "@/components/ui/button";
+import { ASSETS } from "@/lib/market/catalog";
 
 /**
  * Landing hero.
@@ -30,7 +31,7 @@ export function Hero() {
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-bull opacity-75" />
               <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-bull" />
             </span>
-            Nine markets · Live technical analysis
+            {ASSETS.length} markets · Live technical analysis
           </span>
         </div>
 
