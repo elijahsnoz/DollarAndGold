@@ -63,10 +63,20 @@ export async function getCurrentProfile() {
 }
 
 /**
- * Gate for `/api/admin/*` route handlers.
+ * Gate for `/api/admin/*` and `/api/ai-trader/*` route handlers.
  * RLS enforces the same rule at the database layer — this exists so a
  * rejected request gets a clear status and message instead of an opaque
  * Postgres error.
+ *
+ * Two failure modes get distinguished from a genuine "not an admin":
+ *  - A network hiccup reaching Supabase itself throws — caught below rather
+ *    than propagating as an unhandled 500.
+ *  - Multiple concurrent auth checks on one page load can trigger Supabase's
+ *    own `AuthRefreshDiscardedError` ("session state changed mid-flight"),
+ *    which makes a single `getUser()` call transiently see no session even
+ *    though one exists. One retry is enough for that race to have settled.
+ * Both return a 503 asking the caller to retry, not a 403 — a transient
+ * failure to verify is not the same claim as "you are not an admin."
  */
 export async function requireAdmin(): Promise<
   | { ok: true; supabase: SupabaseClient }
@@ -77,7 +87,17 @@ export async function requireAdmin(): Promise<
     return { ok: false, status: 400, error: "Admin isn't configured." };
   }
 
-  const profile = await getCurrentProfile();
+  let profile;
+  try {
+    profile = (await getCurrentProfile()) ?? (await getCurrentProfile());
+  } catch {
+    return {
+      ok: false,
+      status: 503,
+      error: "Couldn't verify admin access right now — please try again.",
+    };
+  }
+
   if (!profile?.is_admin) {
     return { ok: false, status: 403, error: "Not authorized." };
   }
