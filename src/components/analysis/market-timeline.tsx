@@ -15,6 +15,9 @@ const KIND_LABEL: Record<TimelineEvent["kind"], string> = {
 
 const MAX_SHOWN = 20;
 
+/** An event with which market it belongs to — for cross-market lists like Watchlist Intelligence. */
+export type AttributedTimelineEvent = TimelineEvent & { assetName?: string };
+
 function EventIcon({ event }: { event: TimelineEvent }) {
   const Icon =
     event.kind === "trend-reversal"
@@ -46,14 +49,17 @@ function EventIcon({ event }: { event: TimelineEvent }) {
  * news, merged into one chronological read. See `lib/ai/timeline.ts` for what
  * qualifies as each kind of event and why.
  */
-export function MarketTimeline({ events }: { events: TimelineEvent[] }) {
+export function MarketTimeline({
+  events,
+  emptyMessage = "Nothing in this window cleared the bar for a notable move, trend change, or level break.",
+}: {
+  events: AttributedTimelineEvent[];
+  emptyMessage?: string;
+}) {
   if (events.length === 0) {
     return (
       <Card className="p-6">
-        <p className="text-sm text-muted-foreground">
-          Nothing in this window cleared the bar for a notable move, trend
-          change, or level break.
-        </p>
+        <p className="text-sm text-muted-foreground">{emptyMessage}</p>
       </Card>
     );
   }
@@ -68,7 +74,12 @@ export function MarketTimeline({ events }: { events: TimelineEvent[] }) {
             <EventIcon event={event} />
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2">
-                <p className="text-sm font-medium">{event.title}</p>
+                <p className="text-sm font-medium">
+                  {event.assetName && (
+                    <span className="text-muted-foreground">{event.assetName} — </span>
+                  )}
+                  {event.title}
+                </p>
                 <Badge variant="outline" className="text-[10px]">
                   {KIND_LABEL[event.kind]}
                 </Badge>

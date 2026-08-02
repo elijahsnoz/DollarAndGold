@@ -19,6 +19,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/misc";
 import { Skeleton } from "@/components/ui/skeleton";
+import { WatchlistIntelligence } from "@/components/watchlist/watchlist-intelligence";
 import { formatPrice } from "@/lib/format";
 import { getAsset } from "@/lib/market/catalog";
 import type { Quote } from "@/lib/market/types";
@@ -121,7 +122,10 @@ export function WatchlistView() {
   }
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-8">
+      <WatchlistIntelligence symbols={sorted.map((item) => item.symbol)} />
+
+      <div className="space-y-3">
       {sorted.map((item) => {
         const asset = getAsset(item.symbol);
         if (!asset) return null;
@@ -201,6 +205,7 @@ export function WatchlistView() {
       {loading && sorted.length > 0 && (
         <p className="text-xs text-muted-foreground">Refreshing prices…</p>
       )}
+      </div>
     </div>
   );
 }

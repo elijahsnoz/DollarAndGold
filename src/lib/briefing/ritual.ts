@@ -24,7 +24,8 @@ export function dayKey(now: number = Date.now()): string {
   return `${date.getFullYear()}-${month}-${day}`;
 }
 
-function greetingFor(now: number, name?: string): string {
+/** Shared with `cadence.ts`, whose intraday updates greet the same way. */
+export function greetingFor(now: number, name?: string): string {
   const hour = new Date(now).getHours();
   const part =
     hour < 5 ? "Good evening" : hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
