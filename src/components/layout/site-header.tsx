@@ -4,7 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTheme } from "next-themes";
-import { LayoutDashboard, LogOut, Menu, Moon, Search, Shield, Sun, X } from "lucide-react";
+import { Bot, LayoutDashboard, LogOut, Menu, Moon, Search, Shield, Sun, X } from "lucide-react";
 
 import { Logo } from "@/components/layout/logo";
 import { NAV_ITEMS } from "@/components/layout/nav-config";
@@ -145,6 +145,14 @@ export function SiteHeader() {
                       <Link href="/admin">
                         <Shield />
                         Admin
+                      </Link>
+                    </DropdownMenuItem>
+                  )}
+                  {isAdmin && (
+                    <DropdownMenuItem asChild>
+                      <Link href="/ai-trader">
+                        <Bot />
+                        AI Trader
                       </Link>
                     </DropdownMenuItem>
                   )}

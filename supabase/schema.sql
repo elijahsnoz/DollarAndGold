@@ -201,6 +201,42 @@ create policy "admins manage news articles"
 create index if not exists news_articles_published_at_idx
   on public.news_articles (published_at desc);
 
+-- ---------------------------------------------------------------------------
+-- Exchange credentials: /ai-trader's Bybit connection.
+--
+-- A private, admin-only tool — this table is never reachable by an ordinary
+-- user regardless of RLS, because /ai-trader itself is gated on `is_admin` at
+-- the application layer. RLS here is the second layer, not the only one.
+--
+-- The key/secret columns hold ciphertext produced by
+-- `lib/ai-trader/credentials.ts` (AES-256-GCM, application-side) — the
+-- encryption key lives only in the `AI_TRADER_ENCRYPTION_KEY` server
+-- environment variable, never in the database. RLS stops another user from
+-- reading the row; encryption stops a database-level leak from reading the
+-- plaintext.
+-- ---------------------------------------------------------------------------
+
+create table if not exists public.exchange_credentials (
+  id                    uuid primary key default gen_random_uuid(),
+  user_id               uuid not null references auth.users on delete cascade,
+  exchange              text not null default 'bybit',
+  -- 'testnet' | 'live'.
+  environment           text not null default 'testnet',
+  api_key_encrypted     text not null,
+  api_secret_encrypted  text not null,
+  created_at            timestamptz not null default now(),
+  updated_at            timestamptz not null default now(),
+  unique (user_id, exchange)
+);
+
+alter table public.exchange_credentials enable row level security;
+
+drop policy if exists "exchange credentials are self-and-admin-only" on public.exchange_credentials;
+create policy "exchange credentials are self-and-admin-only"
+  on public.exchange_credentials for all
+  using (auth.uid() = user_id and public.is_admin(auth.uid()))
+  with check (auth.uid() = user_id and public.is_admin(auth.uid()));
+
 -- Keep updated_at honest regardless of what the client sends.
 create or replace function public.touch_updated_at()
 returns trigger
@@ -225,4 +261,9 @@ create trigger profiles_touch_updated_at
 drop trigger if exists news_articles_touch_updated_at on public.news_articles;
 create trigger news_articles_touch_updated_at
   before update on public.news_articles
+  for each row execute function public.touch_updated_at();
+
+drop trigger if exists exchange_credentials_touch_updated_at on public.exchange_credentials;
+create trigger exchange_credentials_touch_updated_at
+  before update on public.exchange_credentials
   for each row execute function public.touch_updated_at();

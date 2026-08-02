@@ -8,7 +8,7 @@ export default function robots(): MetadataRoute.Robots {
       userAgent: "*",
       allow: "/",
       // Personal surfaces and API endpoints have nothing to index.
-      disallow: ["/dashboard", "/sign-in", "/api/"],
+      disallow: ["/dashboard", "/sign-in", "/api/", "/ai-trader"],
     },
     sitemap: `${SITE_URL}/sitemap.xml`,
   };
