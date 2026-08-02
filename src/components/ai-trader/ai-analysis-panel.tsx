@@ -8,8 +8,13 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/input";
+import {
+  TradeApprovalDialog,
+  type PendingTrade,
+} from "@/components/ai-trader/trade-approval-dialog";
+import { bybitSymbolFor } from "@/lib/ai-trader/bybit-symbol-map";
 import { formatPrice, formatSignedPercent } from "@/lib/format";
-import type { TradeAnalysis } from "@/lib/ai-trader/types";
+import type { ExchangeConnectionStatus, TradeAnalysis } from "@/lib/ai-trader/types";
 import { cn } from "@/lib/utils";
 
 const SIGNAL_VARIANT = { buy: "bull", sell: "bear", hold: "neutral" } as const;
@@ -24,11 +29,13 @@ const SUGGESTIONS = ["Analyze BTC", "Analyze Gold", "Analyze EURUSD"];
  * or SELL" is satisfied by always attaching `reasons` and `suggestion.note`,
  * not by generating free-form prose that could drift from the numbers above it.
  */
-export function AiAnalysisPanel() {
+export function AiAnalysisPanel({ connection }: { connection: ExchangeConnectionStatus }) {
   const [question, setQuestion] = React.useState("");
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [analysis, setAnalysis] = React.useState<TradeAnalysis | null>(null);
+  const [pendingTrade, setPendingTrade] = React.useState<PendingTrade | null>(null);
+  const [dialogOpen, setDialogOpen] = React.useState(false);
 
   const analyze = async (text: string) => {
     const trimmed = text.trim();
@@ -114,14 +121,46 @@ export function AiAnalysisPanel() {
         {error && <p className="mt-4 text-sm text-bear">{error}</p>}
       </Card>
 
-      {analysis && <AnalysisResult analysis={analysis} />}
+      {analysis && (
+        <AnalysisResult
+          analysis={analysis}
+          connection={connection}
+          onApprove={(trade) => {
+            setPendingTrade(trade);
+            setDialogOpen(true);
+          }}
+        />
+      )}
+
+      <TradeApprovalDialog
+        trade={pendingTrade}
+        environment={connection.environment}
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        onApproved={() => setPendingTrade(null)}
+      />
     </section>
   );
 }
 
-function AnalysisResult({ analysis }: { analysis: TradeAnalysis }) {
+function AnalysisResult({
+  analysis,
+  connection,
+  onApprove,
+}: {
+  analysis: TradeAnalysis;
+  connection: ExchangeConnectionStatus;
+  onApprove: (trade: PendingTrade) => void;
+}) {
   const p = analysis.precision;
   const { suggestion } = analysis;
+  const bybitSymbol = bybitSymbolFor(analysis.symbol);
+  const canTrade =
+    connection.connected &&
+    bybitSymbol !== null &&
+    suggestion.entry !== null &&
+    suggestion.stopLoss !== null &&
+    suggestion.takeProfit !== null;
 
   return (
     <div className="mt-5 space-y-4">
@@ -234,6 +273,40 @@ function AnalysisResult({ analysis }: { analysis: TradeAnalysis }) {
               />
             </div>
             <p className="mt-4 text-xs leading-relaxed text-muted-foreground">{suggestion.note}</p>
+
+            {canTrade && (
+              <Button
+                type="button"
+                className="mt-4 w-full"
+                onClick={() =>
+                  onApprove({
+                    symbol: analysis.symbol,
+                    bybitSymbol: bybitSymbol as string,
+                    assetName: analysis.assetName,
+                    precision: p,
+                    side: suggestion.signal === "buy" ? "buy" : "sell",
+                    entry: suggestion.entry as number,
+                    stopLoss: suggestion.stopLoss as number,
+                    takeProfit: suggestion.takeProfit as number,
+                    confidence: analysis.confidenceScore,
+                    reasons: analysis.reasons,
+                    note: suggestion.note,
+                  })
+                }
+              >
+                Review &amp; approve trade
+              </Button>
+            )}
+            {!connection.connected && (
+              <p className="mt-3 text-xs text-muted-foreground">
+                Connect Bybit above to approve and place this trade.
+              </p>
+            )}
+            {connection.connected && !bybitSymbol && (
+              <p className="mt-3 text-xs text-muted-foreground">
+                {analysis.assetName} isn&apos;t tradable on Bybit — only crypto markets are.
+              </p>
+            )}
           </>
         )}
       </Card>

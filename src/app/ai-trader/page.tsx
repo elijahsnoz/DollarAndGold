@@ -42,7 +42,7 @@ export default async function AiTraderPage() {
       <StatusCard connection={connection} />
       <ConnectBybitCard initial={connection} />
       <MarketDashboard cards={cards} />
-      <AiAnalysisPanel />
+      <AiAnalysisPanel connection={connection} />
     </div>
   );
 }

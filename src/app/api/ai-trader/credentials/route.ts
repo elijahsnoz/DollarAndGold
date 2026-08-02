@@ -91,6 +91,9 @@ export async function POST(request: Request) {
   );
 
   if (error) {
+    // Logged, not swallowed — the most common cause is a Supabase project
+    // that hasn't had the latest supabase/schema.sql run against it yet.
+    console.error("[ai-trader] exchange_credentials upsert failed:", error);
     return NextResponse.json({ error: "Couldn't save those credentials." }, { status: 500 });
   }
 
