@@ -12,6 +12,7 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/desk", label: "Desk" },
   { href: "/markets", label: "Markets" },
   { href: "/analysis", label: "Market Intelligence" },
+  { href: "/compare", label: "Compare" },
   { href: "/watchlist", label: "Watchlist" },
   { href: "/news", label: "News" },
   { href: "/dashboard", label: "Dashboard", authOnly: true },

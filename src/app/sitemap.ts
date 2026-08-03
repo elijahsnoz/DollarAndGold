@@ -9,6 +9,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { path: "", priority: 1 },
     { path: "/markets", priority: 0.9 },
     { path: "/analysis", priority: 0.9 },
+    { path: "/compare", priority: 0.7 },
     { path: "/news", priority: 0.8 },
     { path: "/watchlist", priority: 0.5 },
     { path: "/pricing", priority: 0.7 },
