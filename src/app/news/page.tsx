@@ -10,6 +10,7 @@ export const metadata: Metadata = {
   title: "News",
   description:
     "Forex, crypto, stocks, commodities and global economy headlines — each with a 30-second AI summary, why it matters, and the likely market impact.",
+  alternates: { canonical: "/news" },
 };
 
 export default async function NewsPage() {

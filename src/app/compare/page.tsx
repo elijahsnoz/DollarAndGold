@@ -7,6 +7,7 @@ export const metadata: Metadata = {
   title: "Compare Markets",
   description:
     "Compare trend, confidence, volatility, key levels and correlation across multiple markets side by side.",
+  alternates: { canonical: "/compare" },
 };
 
 export default function ComparePage() {

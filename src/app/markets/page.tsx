@@ -14,6 +14,7 @@ export const metadata: Metadata = {
   title: "Markets",
   description:
     "Live prices, 24h change and trend across the whole catalog — forex, crypto, commodities, indices and equities.",
+  alternates: { canonical: "/markets" },
 };
 
 export default async function MarketsPage() {

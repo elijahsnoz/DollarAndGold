@@ -29,7 +29,7 @@ export const metadata: Metadata = {
     template: "%s · DollarAndGold",
   },
   description:
-    "Analyse Forex, Gold, Crypto, Stocks and Indices with AI before placing your next trade. Structured technical analysis, news summaries and risk awareness — never financial advice.",
+    "AI-powered market intelligence for Forex, Gold, Crypto, Stocks and Indices — structured technical analysis, news summaries and risk context. Not financial advice.",
   keywords: [
     "market analysis",
     "AI trading research",
@@ -39,6 +39,7 @@ export const metadata: Metadata = {
     "technical analysis",
   ],
   authors: [{ name: "DollarAndGold" }],
+  alternates: { canonical: "/" },
   openGraph: {
     type: "website",
     url: SITE_URL,
@@ -56,6 +57,23 @@ export const metadata: Metadata = {
   robots: { index: true, follow: true },
 };
 
+const ORGANIZATION_JSON_LD = {
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  name: "DollarAndGold",
+  url: SITE_URL,
+  logo: `${SITE_URL}/icon.png`,
+  description:
+    "AI-powered market intelligence for Forex, Gold, Crypto, Stocks and Indices.",
+};
+
+const WEBSITE_JSON_LD = {
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  name: "DollarAndGold",
+  url: SITE_URL,
+};
+
 export const viewport: Viewport = {
   themeColor: [
     { media: "(prefers-color-scheme: dark)", color: "#08090c" },
@@ -71,6 +89,14 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning className={`${sans.variable} ${mono.variable}`}>
       <body className="min-h-dvh">
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(ORGANIZATION_JSON_LD) }}
+        />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(WEBSITE_JSON_LD) }}
+        />
         <AppProviders>
           <a
             href="#main"

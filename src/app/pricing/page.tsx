@@ -12,6 +12,7 @@ export const metadata: Metadata = {
   title: "Pricing",
   description:
     "Free, Pro and Enterprise plans for AI-assisted market research across Forex, Gold, Crypto, Stocks and Indices.",
+  alternates: { canonical: "/pricing" },
 };
 
 const PLANS = [

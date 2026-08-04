@@ -20,6 +20,7 @@ export const metadata: Metadata = {
   title: "Market Intelligence",
   description:
     "Choose a market for structured market intelligence: trend and confidence, key support and resistance, technical indicators, scenarios and risks.",
+  alternates: { canonical: "/analysis" },
 };
 
 const CLASS_ORDER: AssetClass[] = [
