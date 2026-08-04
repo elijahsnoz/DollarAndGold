@@ -65,14 +65,16 @@ export function SiteHeader() {
             : "border-b border-transparent",
         )}
       >
-        <div className="container flex h-16 items-center gap-4">
+        <div className="container flex h-16 items-center">
           <Link href="/" aria-label="DollarAndGold home" className="shrink-0">
             <Logo />
           </Link>
 
+          <span aria-hidden="true" className="mx-5 hidden h-6 w-px bg-border/70 lg:block" />
+
           <nav
             aria-label="Primary"
-            className="ml-4 hidden items-center gap-0.5 lg:flex"
+            className="hidden items-center gap-1 lg:flex"
           >
             {NAV_ITEMS.map((item) => (
               <Link
@@ -87,37 +89,41 @@ export function SiteHeader() {
                 )}
               >
                 {isActive(item.href) && (
-                  <span className="absolute inset-0 -z-10 rounded-full bg-foreground/[0.07]" />
+                  <span className="absolute inset-0 -z-10 rounded-full border border-border/60 bg-foreground/[0.06]" />
                 )}
                 {item.label}
               </Link>
             ))}
           </nav>
 
-          <div className="ml-auto flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setSearchOpen(true)}
-              className="hidden items-center gap-2 rounded-full border border-border/70 bg-foreground/[0.03] py-1.5 pl-3 pr-2 text-sm text-muted-foreground transition-colors hover:border-foreground/20 hover:text-foreground sm:flex"
-            >
-              <Search className="h-3.5 w-3.5" />
-              <span className="pr-6">Search markets</span>
-              <kbd className="rounded border border-border bg-background/60 px-1.5 py-0.5 font-mono text-[10px] font-medium">
-                ⌘K
-              </kbd>
-            </button>
+          <div className="ml-auto flex items-center gap-3">
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setSearchOpen(true)}
+                className="hidden items-center gap-2 rounded-full border border-border/70 bg-foreground/[0.03] py-1.5 pl-3 pr-2 text-sm text-muted-foreground transition-colors hover:border-foreground/20 hover:text-foreground sm:flex"
+              >
+                <Search className="h-3.5 w-3.5" />
+                <span className="pr-6">Search markets</span>
+                <kbd className="rounded border border-border bg-background/60 px-1.5 py-0.5 font-mono text-[10px] font-medium">
+                  ⌘K
+                </kbd>
+              </button>
 
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              className="sm:hidden"
-              onClick={() => setSearchOpen(true)}
-              aria-label="Search"
-            >
-              <Search />
-            </Button>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                className="sm:hidden"
+                onClick={() => setSearchOpen(true)}
+                aria-label="Search"
+              >
+                <Search />
+              </Button>
 
-            <ThemeToggle />
+              <ThemeToggle />
+            </div>
+
+            <span aria-hidden="true" className="hidden h-6 w-px bg-border/70 sm:block" />
 
             {user ? (
               <DropdownMenu>
